@@ -37,17 +37,20 @@ export function ControlBar({ onToggleAudio, onToggleVideo, onEmitState }: Props)
         onClick={toggleAudio}
         title={audioEnabled ? 'Mute mic' : 'Unmute mic'}
       >
-        {audioEnabled ? '🎤' : '🔇'}
+        <span className="ctrl-icon">{audioEnabled ? '🎤' : '🔇'}</span>
+        <span className="ctrl-label">{audioEnabled ? 'Mic' : 'Muted'}</span>
       </button>
       <button
         className={`control-btn ${videoEnabled ? '' : 'control-btn--off'}`}
         onClick={toggleVideo}
         title={videoEnabled ? 'Turn off camera' : 'Turn on camera'}
       >
-        {videoEnabled ? '📷' : '🚫'}
+        <span className="ctrl-icon">{videoEnabled ? '📷' : '🚫'}</span>
+        <span className="ctrl-label">{videoEnabled ? 'Camera' : 'Cam off'}</span>
       </button>
       <button className="control-btn control-btn--leave" onClick={leaveRoom} title="Leave room">
-        📞 Leave
+        <span className="ctrl-icon">📞</span>
+        <span className="ctrl-label">Leave</span>
       </button>
     </div>
   );

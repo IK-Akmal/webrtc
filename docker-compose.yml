@@ -1,4 +1,17 @@
 services:
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --dev --bind 0.0.0.0
+    environment:
+      # NODE_IP must be the LAN IP of the host machine so browsers can reach the RTC ports
+      NODE_IP: ${LIVEKIT_NODE_IP:-127.0.0.1}
+    ports:
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    expose:
+      - "7880"
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -56,6 +69,7 @@ services:
     depends_on:
       - backend
       - frontend
+      - livekit
 
 volumes:
   pgdata:

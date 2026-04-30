@@ -7,17 +7,27 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 import { Room, RoomStatus } from './entities/room.entity';
 import { Participant, ParticipantState } from './entities/participant.entity';
 import { CreateRoomDto } from './dto/create-room.dto';
 
 @Injectable()
 export class RoomsService {
+  private readonly livekitRoomService: RoomServiceClient;
+
   constructor(
     @InjectRepository(Room) private readonly roomRepo: Repository<Room>,
     @InjectRepository(Participant) private readonly participantRepo: Repository<Participant>,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    const url = this.config.get<string>('LIVEKIT_URL') ?? 'http://livekit:7880';
+    const apiKey = this.config.get<string>('LIVEKIT_API_KEY') ?? 'devkey';
+    const apiSecret = this.config.get<string>('LIVEKIT_API_SECRET') ?? 'secret';
+    // RoomServiceClient expects http(s):// URL
+    const httpUrl = url.replace(/^ws/, 'http');
+    this.livekitRoomService = new RoomServiceClient(httpUrl, apiKey, apiSecret);
+  }
 
   async create(ownerId: string, dto: CreateRoomDto): Promise<Room> {
     const room = this.roomRepo.create({
@@ -40,10 +50,16 @@ export class RoomsService {
       select: { ...RoomsService.OWNER_SELECT },
       order: { createdAt: 'DESC' },
     });
-    const counts = await Promise.all(
-      rooms.map((r) => this.participantRepo.countBy({ roomId: r.id, leftAt: IsNull() })),
-    );
-    return rooms.map((r, i) => Object.assign(r, { activeParticipantCount: counts[i] ?? 0 }));
+
+    let livekitRooms: { name: string; numParticipants: number }[] = [];
+    try {
+      livekitRooms = await this.livekitRoomService.listRooms();
+    } catch {
+      // LiveKit unreachable — counts will default to 0
+    }
+
+    const countMap = new Map(livekitRooms.map((r) => [r.name, r.numParticipants]));
+    return rooms.map((r) => Object.assign(r, { activeParticipantCount: countMap.get(r.id) ?? 0 }));
   }
 
   async findOne(id: string): Promise<Room> {
@@ -101,6 +117,27 @@ export class RoomsService {
       { leftAt: IsNull() },
       { leftAt: new Date(), state: ParticipantState.DISCONNECTED },
     );
+  }
+
+  async getLivekitToken(
+    roomId: string,
+    userId: string,
+    displayName: string,
+  ): Promise<{ token: string }> {
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) throw new NotFoundException('Room not found');
+
+    const apiKey = this.config.get<string>('LIVEKIT_API_KEY') ?? 'devkey';
+    const apiSecret = this.config.get<string>('LIVEKIT_API_SECRET') ?? 'secret';
+
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: userId,
+      name: displayName,
+      ttl: '1h',
+    });
+    at.addGrant({ roomJoin: true, room: roomId, canPublish: true, canSubscribe: true });
+
+    return { token: await at.toJwt() };
   }
 
   getIceConfig(userId: string): { iceServers: object[] } {

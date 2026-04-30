@@ -1,47 +1,105 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from 'react';
+import { Participant, Track, ParticipantEvent, ConnectionQuality } from 'livekit-client';
 
 interface Props {
-  stream: MediaStream | null;
-  displayName: string;
-  muted?: boolean;
+  participant: Participant;
+  trackSource?: Track.Source;
   isLocal?: boolean;
+  isSpeaking?: boolean;
 }
 
-export function VideoTile({
-  stream,
-  displayName,
-  muted = false,
-  isLocal = false,
-}: Props) {
+const qualityIcon: Record<string, string> = {
+  [ConnectionQuality.Excellent]: '▂▄█',
+  [ConnectionQuality.Good]:      '▂▄░',
+  [ConnectionQuality.Poor]:      '▂░░',
+  [ConnectionQuality.Lost]:      '✕',
+  [ConnectionQuality.Unknown]:   '',
+};
+
+const qualityClass: Record<string, string> = {
+  [ConnectionQuality.Excellent]: 'quality--excellent',
+  [ConnectionQuality.Good]:      'quality--good',
+  [ConnectionQuality.Poor]:      'quality--poor',
+  [ConnectionQuality.Lost]:      'quality--lost',
+  [ConnectionQuality.Unknown]:   '',
+};
+
+export function VideoTile({ participant, trackSource = Track.Source.Camera, isLocal = false, isSpeaking = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [, forceUpdate] = useState(0);
+  const [quality, setQuality] = useState<ConnectionQuality>(ConnectionQuality.Unknown);
+  const isScreenShare = trackSource === Track.Source.ScreenShare;
 
+  // Re-render when participant tracks/state change
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !stream) return;
-    video.srcObject = stream;
-    // Explicit play() call is required on iOS Safari — autoPlay attribute alone
-    // is not enough for remote (unmuted) streams without a prior user gesture.
-    video.play().catch((error) => {
-      console.error(error);
-      // Autoplay was blocked. The browser will wait for a user interaction.
-      // The user can tap the video tile to start playback.
-    });
-  }, [stream]);
+    const refresh = () => forceUpdate((n) => n + 1);
+    participant
+      .on(ParticipantEvent.TrackPublished, refresh)
+      .on(ParticipantEvent.TrackUnpublished, refresh)
+      .on(ParticipantEvent.TrackSubscribed, refresh)
+      .on(ParticipantEvent.TrackUnsubscribed, refresh)
+      .on(ParticipantEvent.IsSpeakingChanged, refresh)
+      .on(ParticipantEvent.TrackMuted, refresh)
+      .on(ParticipantEvent.TrackUnmuted, refresh)
+      .on(ParticipantEvent.ConnectionQualityChanged, (q: ConnectionQuality) => {
+        setQuality(q);
+        refresh();
+      });
+    return () => {
+      participant
+        .off(ParticipantEvent.TrackPublished, refresh)
+        .off(ParticipantEvent.TrackUnpublished, refresh)
+        .off(ParticipantEvent.TrackSubscribed, refresh)
+        .off(ParticipantEvent.TrackUnsubscribed, refresh)
+        .off(ParticipantEvent.IsSpeakingChanged, refresh)
+        .off(ParticipantEvent.TrackMuted, refresh)
+        .off(ParticipantEvent.TrackUnmuted, refresh)
+        .off(ParticipantEvent.ConnectionQualityChanged, () => {});
+    };
+  }, [participant]);
 
-  // Allow the user to manually resume playback after a blocked autoplay
-  function handleClick() {
-    videoRef.current?.play().catch((error) => console.error(error));
-  }
+  // Attach/detach track on every render
+  useEffect(() => {
+    const pub = participant.getTrackPublication(trackSource);
+    const track = pub?.videoTrack;
+    const el = videoRef.current;
+    if (!track || !el) return;
+    track.attach(el);
+    return () => { track.detach(el); };
+  });
+
+  const isMicMuted = !participant.isMicrophoneEnabled;
+  const isCamOff = !isScreenShare && !participant.isCameraEnabled;
+  const displayName = participant.name || participant.identity;
+
+  const classes = [
+    'video-tile',
+    isLocal && !isScreenShare ? 'video-tile--local' : '',
+    isSpeaking ? 'video-tile--speaking' : '',
+    isScreenShare ? 'video-tile--screen' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div
-      className={`video-tile${isLocal ? " video-tile--local" : ""}`}
-      onClick={handleClick}
-    >
-      <video ref={videoRef} autoPlay playsInline muted={muted || isLocal} />
+    <div className={classes}>
+      <video ref={videoRef} autoPlay playsInline muted={isLocal} />
+
+      {isCamOff && (
+        <div className="video-tile-no-cam">
+          <div className="no-cam-avatar">{displayName.charAt(0).toUpperCase()}</div>
+        </div>
+      )}
+
+      {qualityIcon[quality] && (
+        <div className={`quality-badge ${qualityClass[quality]}`}>
+          {qualityIcon[quality]}
+        </div>
+      )}
+
       <div className="video-tile-label">
+        {isScreenShare && <span className="screen-badge">🖥</span>}
         {displayName}
-        {isLocal ? " (You)" : ""}
+        {isLocal ? ' (You)' : ''}
+        {isMicMuted && !isScreenShare ? ' 🔇' : ''}
       </div>
     </div>
   );

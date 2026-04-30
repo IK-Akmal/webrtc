@@ -34,6 +34,11 @@ export class RoomsController {
     return this.roomsService.create(user.sub, dto);
   }
 
+  @Get(':id/livekit-token')
+  getLivekitToken(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.roomsService.getLivekitToken(id, user.sub, user.displayName);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.roomsService.findOne(id);

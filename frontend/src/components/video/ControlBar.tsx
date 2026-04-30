@@ -4,10 +4,26 @@ import { useNavigate } from 'react-router-dom';
 interface Props {
   onToggleAudio: (enabled: boolean) => void;
   onToggleVideo: (enabled: boolean) => void;
-  onEmitState: (state: string) => void;
+  onToggleScreenShare: (enabled: boolean) => void;
+  onToggleChat: () => void;
+  onToggleParticipants: () => void;
+  isScreenSharing: boolean;
+  chatOpen: boolean;
+  participantsOpen: boolean;
+  unreadCount: number;
 }
 
-export function ControlBar({ onToggleAudio, onToggleVideo, onEmitState }: Props) {
+export function ControlBar({
+  onToggleAudio,
+  onToggleVideo,
+  onToggleScreenShare,
+  onToggleChat,
+  onToggleParticipants,
+  isScreenSharing,
+  chatOpen,
+  participantsOpen,
+  unreadCount,
+}: Props) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const navigate = useNavigate();
@@ -16,18 +32,16 @@ export function ControlBar({ onToggleAudio, onToggleVideo, onEmitState }: Props)
     const next = !audioEnabled;
     setAudioEnabled(next);
     onToggleAudio(next);
-    onEmitState(next ? 'connected' : 'muted_audio');
   }
 
   function toggleVideo() {
     const next = !videoEnabled;
     setVideoEnabled(next);
     onToggleVideo(next);
-    onEmitState(next ? 'connected' : 'muted_video');
   }
 
-  function leaveRoom() {
-    navigate('/rooms');
+  function toggleScreenShare() {
+    onToggleScreenShare(!isScreenSharing);
   }
 
   return (
@@ -40,6 +54,7 @@ export function ControlBar({ onToggleAudio, onToggleVideo, onEmitState }: Props)
         <span className="ctrl-icon">{audioEnabled ? '🎤' : '🔇'}</span>
         <span className="ctrl-label">{audioEnabled ? 'Mic' : 'Muted'}</span>
       </button>
+
       <button
         className={`control-btn ${videoEnabled ? '' : 'control-btn--off'}`}
         onClick={toggleVideo}
@@ -48,7 +63,36 @@ export function ControlBar({ onToggleAudio, onToggleVideo, onEmitState }: Props)
         <span className="ctrl-icon">{videoEnabled ? '📷' : '🚫'}</span>
         <span className="ctrl-label">{videoEnabled ? 'Camera' : 'Cam off'}</span>
       </button>
-      <button className="control-btn control-btn--leave" onClick={leaveRoom} title="Leave room">
+
+      <button
+        className={`control-btn ${isScreenSharing ? 'control-btn--active' : ''}`}
+        onClick={toggleScreenShare}
+        title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+      >
+        <span className="ctrl-icon">🖥</span>
+        <span className="ctrl-label">{isScreenSharing ? 'Stop' : 'Share'}</span>
+      </button>
+
+      <button
+        className={`control-btn ${participantsOpen ? 'control-btn--active' : ''}`}
+        onClick={onToggleParticipants}
+        title="Participants"
+      >
+        <span className="ctrl-icon">👥</span>
+        <span className="ctrl-label">People</span>
+      </button>
+
+      <button
+        className={`control-btn ${chatOpen ? 'control-btn--active' : ''} ctrl-chat`}
+        onClick={onToggleChat}
+        title="Chat"
+      >
+        <span className="ctrl-icon">💬</span>
+        {unreadCount > 0 && <span className="ctrl-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+        <span className="ctrl-label">Chat</span>
+      </button>
+
+      <button className="control-btn control-btn--leave" onClick={() => navigate('/rooms')} title="Leave room">
         <span className="ctrl-icon">📞</span>
         <span className="ctrl-label">Leave</span>
       </button>

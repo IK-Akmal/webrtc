@@ -1,82 +1,122 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useAuthStore } from "../store/authStore";
-import { useSocket } from "../hooks/useSocket";
-import { useMediaDevices } from "../hooks/useMediaDevices";
-import { useWebRTC } from "../hooks/useWebRTC";
-import { VideoGrid } from "../components/video/VideoGrid";
-import { ControlBar } from "../components/video/ControlBar";
+import { useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ConnectionState } from 'livekit-client';
+import { useRoom } from '../hooks/useRoom';
+import { VideoGrid } from '../components/video/VideoGrid';
+import { ControlBar } from '../components/video/ControlBar';
+import { ChatPanel } from '../components/video/ChatPanel';
+import { ParticipantPanel } from '../components/video/ParticipantPanel';
+
+type PanelType = 'chat' | 'participants' | null;
 
 export function RoomPage() {
   const { id: roomId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accessToken, user, iceServers } = useAuthStore();
-  const socketRef = useSocket(accessToken);
+
   const {
-    stream,
-    error: mediaError,
+    localParticipant,
+    remoteParticipants,
+    connectionState,
+    error,
+    mediaError,
+    activeSpeakerSids,
+    chatMessages,
+    isScreenSharing,
     toggleAudio,
     toggleVideo,
-  } = useMediaDevices();
+    toggleScreenShare,
+    sendChatMessage,
+  } = useRoom(roomId ?? '');
 
-  const socket = socketRef.current;
-  const { peerStreams } = useWebRTC(
-    stream && socket ? socket : null,
-    stream,
-    iceServers,
-    roomId ?? "",
-  );
+  const [activePanel, setActivePanel] = useState<PanelType>(null);
+  const [mediaBannerDismissed, setMediaBannerDismissed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevMsgLen = useRef(0);
+
+  // Track unread messages when chat is closed
+  useEffect(() => {
+    const newCount = chatMessages.length - prevMsgLen.current;
+    if (newCount > 0 && activePanel !== 'chat') {
+      setUnreadCount((n) => n + newCount);
+    }
+    prevMsgLen.current = chatMessages.length;
+  }, [chatMessages, activePanel]);
+
+  function togglePanel(panel: PanelType) {
+    setActivePanel((cur) => (cur === panel ? null : panel));
+    if (panel === 'chat') setUnreadCount(0);
+  }
 
   if (!roomId) {
-    navigate("/rooms");
+    navigate('/rooms');
     return null;
   }
 
-  if (mediaError) {
+  if (error) {
     return (
       <div className="room-error">
         <div className="error-banner">
-          <strong>Media access required</strong>
-          <p>{mediaError}</p>
+          <strong>Connection error</strong>
+          <p>{error}</p>
         </div>
-        <button className="btn" onClick={() => navigate("/rooms")}>
+        <button className="btn" onClick={() => navigate('/rooms')}>
           Back to Rooms
         </button>
       </div>
     );
   }
 
-  if (!stream) {
-    return (
-      <div className="room-loading">
-        Requesting camera and microphone access…
-      </div>
-    );
+  if (connectionState !== ConnectionState.Connected) {
+    return <div className="room-loading">Connecting to room…</div>;
   }
 
-  function emitState(state: string) {
-    socket?.emit("participant-state-changed", { state });
-  }
+  const totalCount = remoteParticipants.length + 1;
 
   return (
     <div className="room-page">
       <div className="room-page-header">
         <h2>Room</h2>
         <span className="participant-count">
-          {peerStreams.length + 1} participant
-          {peerStreams.length + 1 !== 1 ? "s" : ""}
+          {totalCount} participant{totalCount !== 1 ? 's' : ''}
         </span>
       </div>
 
-      <VideoGrid
-        localStream={stream}
-        localDisplayName={user?.displayName ?? "You"}
-        peerStreams={peerStreams}
-      />
+      {mediaError && !mediaBannerDismissed && (
+        <div className="media-error-banner">
+          <span>⚠️ {mediaError}</span>
+          <button onClick={() => setMediaBannerDismissed(true)}>✕</button>
+        </div>
+      )}
+
+      <div className="room-body">
+        <VideoGrid
+          localParticipant={localParticipant}
+          remoteParticipants={remoteParticipants}
+          activeSpeakerSids={activeSpeakerSids}
+        />
+
+        {activePanel === 'chat' && (
+          <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+        )}
+        {activePanel === 'participants' && (
+          <ParticipantPanel
+            localParticipant={localParticipant}
+            remoteParticipants={remoteParticipants}
+            activeSpeakerSids={activeSpeakerSids}
+          />
+        )}
+      </div>
 
       <ControlBar
         onToggleAudio={toggleAudio}
         onToggleVideo={toggleVideo}
-        onEmitState={emitState}
+        onToggleScreenShare={toggleScreenShare}
+        onToggleChat={() => togglePanel('chat')}
+        onToggleParticipants={() => togglePanel('participants')}
+        isScreenSharing={isScreenSharing}
+        chatOpen={activePanel === 'chat'}
+        participantsOpen={activePanel === 'participants'}
+        unreadCount={unreadCount}
       />
     </div>
   );

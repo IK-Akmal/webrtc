@@ -40,7 +40,10 @@ export class RoomsService {
       ownerId,
       status: RoomStatus.WAITING,
     });
-    return this.roomRepo.save(room);
+    const saved = await this.roomRepo.save(room);
+    const { passwordHash: _ph, ...rest } = saved as Room & { passwordHash?: unknown };
+    void _ph;
+    return Object.assign(rest as Room, { isPasswordProtected: !!passwordHash, activeParticipantCount: 0 });
   }
 
   private static readonly OWNER_SELECT = {

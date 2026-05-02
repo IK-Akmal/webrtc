@@ -58,15 +58,14 @@ export function VideoTile({ participant, trackSource = Track.Source.Camera, isLo
     };
   }, [participant]);
 
-  // Attach/detach track on every render
+  const track = participant.getTrackPublication(trackSource)?.videoTrack;
+
   useEffect(() => {
-    const pub = participant.getTrackPublication(trackSource);
-    const track = pub?.videoTrack;
     const el = videoRef.current;
     if (!track || !el) return;
     track.attach(el);
     return () => { track.detach(el); };
-  });
+  }, [track]); // only re-attach when the track object itself changes
 
   const isMicMuted = !participant.isMicrophoneEnabled;
   const isCamOff = !isScreenShare && !participant.isCameraEnabled;

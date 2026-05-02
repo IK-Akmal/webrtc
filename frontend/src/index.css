@@ -459,6 +459,7 @@ textarea {
   transition: border-color .2s;
 }
 .video-tile--local  { border-color: var(--accent); }
+.video-tile--local video { transform: scaleX(-1); }
 .video-tile--speaking { border-color: #48bb78; box-shadow: 0 0 0 2px rgba(72,187,120,.35); }
 .video-tile--screen { border-color: #edb348; }
 

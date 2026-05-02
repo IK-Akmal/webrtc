@@ -38,6 +38,21 @@ Audio/video streams flow through **LiveKit SFU** — each browser uploads one st
 
 ---
 
+## Features
+
+- **Video conferencing** — up to 50 participants per room via LiveKit SFU
+- **Text chat** — real-time in-room chat (no persistence)
+- **Screen sharing** — share screen with audio; Zoom-like spotlight layout for viewers
+- **Password-protected rooms** — optional room password; validated before join
+- **Room management** — create, edit (name / description / max participants), delete (owner only)
+- **Mic / camera controls** — toggle independently without renegotiation
+- **Active speaker detection** — speaking participant highlighted with green border
+- **Real-time participant count** — pushed via LiveKit webhook → Socket.IO (no polling)
+- **Mirror camera** — local video mirrored for natural selfie view
+- **Mobile-friendly** — responsive layout, touch-optimised controls, panel close buttons on mobile
+
+---
+
 ## Quick Start (Docker — recommended)
 
 ### 1. Clone and configure
@@ -246,18 +261,18 @@ All endpoints are prefixed with `/api`.
 | Method | Path | Auth | Body | Description |
 |--------|------|------|------|-------------|
 | `GET` | `/rooms` | Bearer | — | List all rooms with participant count |
-| `POST` | `/rooms` | Bearer | `{ name, description?, maxParticipants? }` | Create room |
+| `POST` | `/rooms` | Bearer | `{ name, description?, maxParticipants?, password? }` | Create room |
 | `GET` | `/rooms/ice-config` | Bearer | — | ICE servers with short-lived TURN credentials |
 | `GET` | `/rooms/:id` | Bearer | — | Room details with active participants |
-| `GET` | `/rooms/:id/livekit-token` | Bearer | — | LiveKit JWT for joining the room |
-| `PATCH` | `/rooms/:id` | Bearer (owner) | `{ name?, description? }` | Update room |
+| `GET` | `/rooms/:id/livekit-token` | Bearer | `?password=` | LiveKit JWT for joining the room (password required if room is protected) |
+| `PATCH` | `/rooms/:id` | Bearer (owner) | `{ name?, description?, maxParticipants? }` | Update room |
 | `DELETE` | `/rooms/:id` | Bearer (owner) | — | Delete room |
 
 ### Webhooks (internal)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/rooms/livekit-webhook` | LiveKit signature | LiveKit event receiver — pushes `rooms-updated` via Socket.IO |
+| `POST` | `/rooms/livekit-webhook` | LiveKit signature | LiveKit event receiver — pushes `room-count-updated` via Socket.IO |
 
 ### Health
 
@@ -318,14 +333,14 @@ const socket = io('/notifications', {
   transports: ['websocket', 'polling'],
 });
 
-socket.on('rooms-updated', () => {
-  // Refetch rooms list to get latest participant counts
+socket.on('room-count-updated', ({ roomId, count }) => {
+  // Update participant count for a specific room — no refetch needed
 });
 ```
 
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `rooms-updated` | Server → Client | LiveKit participant joined or left — refetch rooms |
+| Event | Direction | Payload | Description |
+|-------|-----------|---------|-------------|
+| `room-count-updated` | Server → Client | `{ roomId: string, count: number }` | LiveKit participant joined or left — update count directly |
 
 ---
 
@@ -350,7 +365,8 @@ socket.on('rooms-updated', () => {
 | `id` | uuid PK | |
 | `name` | varchar(120) | |
 | `description` | text nullable | |
-| `max_participants` | int | default 10 |
+| `max_participants` | int | default 10, max 50 |
+| `password_hash` | varchar nullable | bcrypt hash; `null` = no password |
 | `status` | enum | `waiting \| active \| closed` |
 | `owner_id` | uuid FK → users | cascade delete |
 | `created_at` | timestamptz | |
@@ -425,11 +441,11 @@ webrtc-conf/
 
 ## Scaling
 
-LiveKit SFU is already in use — no P2P mesh limitation. Current architecture supports **5–20+ participants** per room out of the box.
+LiveKit SFU is already in use — no P2P mesh limitation. Current architecture supports **up to 50 participants** per room out of the box.
 
 | Scale | Participants | What to add |
 |-------|-------------|-------------|
-| Current | 5–20 | LiveKit SFU (already active) |
+| Current | 5–50 | LiveKit SFU (already active) |
 | Medium | 20–100 | LiveKit cluster or Mediasoup |
 | Large | 100+ | SFU cluster + CDN egress |
 | Multi-region signaling | any | `@socket.io/redis-adapter` + Redis |
@@ -443,3 +459,4 @@ LiveKit SFU is already in use — no P2P mesh limitation. Current architecture s
 - **LIVEKIT_NODE_IP on Docker Desktop** — on Windows/macOS Docker Desktop, LiveKit must be told the host LAN IP so browsers can reach ports 7881/7882; auto-detection returns the Docker bridge IP which is not reachable from browsers
 - **Single-node signaling** — in-memory room state in NestJS; add `@socket.io/redis-adapter` for multi-replica deployments
 - **No E2E encryption** — DTLS/SRTP is built into WebRTC but no additional application-layer encryption
+- **Room password not changeable after creation** — edit room does not expose password field; delete and recreate to change password

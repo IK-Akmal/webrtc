@@ -3,15 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import type { Room } from '../../api/rooms.api';
 import { roomsApi } from '../../api/rooms.api';
+import { useAuthStore } from '../../store/authStore';
+import { useRoomStore } from '../../store/roomStore';
+import { useToast } from '../../contexts/ToastContext';
+import { isGloballyHandled } from '../../api/axios';
+import { EditRoomModal } from './EditRoomModal';
 
 interface Props { room: Room }
 
 export function RoomCard({ room }: Props) {
   const navigate = useNavigate();
+  const currentUser = useAuthStore((s) => s.user);
+  const removeRoom = useRoomStore((s) => s.removeRoom);
+  const toast = useToast();
+
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isOwner = currentUser?.id === room.ownerId;
 
   function handleClick() {
     if (room.isPasswordProtected) {
@@ -24,7 +37,7 @@ export function RoomCard({ room }: Props) {
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
     if (!password.trim()) { setError('Enter password'); return; }
-    setLoading(true);
+    setJoining(true);
     setError('');
     try {
       await roomsApi.livekitToken(room.id, password.trim());
@@ -35,7 +48,22 @@ export function RoomCard({ room }: Props) {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
       setError(status === 403 ? 'Incorrect password' : 'Failed to join room');
     } finally {
-      setLoading(false);
+      setJoining(false);
+    }
+  }
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`Delete room "${room.name}"?`)) return;
+    setDeleting(true);
+    try {
+      await roomsApi.delete(room.id);
+      removeRoom(room.id);
+      toast.success(`Room "${room.name}" deleted.`);
+    } catch (err) {
+      if (!isGloballyHandled(err)) toast.error('Failed to delete room.');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -54,7 +82,28 @@ export function RoomCard({ room }: Props) {
           <span>👥 {room.activeParticipantCount ?? 0} / {room.maxParticipants}</span>
           <span>{new Date(room.createdAt).toLocaleDateString()}</span>
         </div>
+        {isOwner && (
+          <div className="room-card-actions" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="room-action-btn"
+              title="Edit"
+              onClick={(e) => { e.stopPropagation(); setShowEdit(true); }}
+            >
+              ✏️
+            </button>
+            <button
+              className="room-action-btn room-action-btn--danger"
+              title="Delete"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              🗑️
+            </button>
+          </div>
+        )}
       </div>
+
+      {showEdit && <EditRoomModal room={room} onClose={() => setShowEdit(false)} />}
 
       {showPrompt && (
         <div className="modal-overlay" onClick={() => { setShowPrompt(false); setError(''); setPassword(''); }}>
@@ -77,8 +126,8 @@ export function RoomCard({ room }: Props) {
                 <button type="button" className="btn" onClick={() => { setShowPrompt(false); setError(''); setPassword(''); }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Checking…' : 'Join'}
+                <button type="submit" className="btn btn-primary" disabled={joining}>
+                  {joining ? 'Checking…' : 'Join'}
                 </button>
               </div>
             </form>

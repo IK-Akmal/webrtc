@@ -260,6 +260,27 @@ textarea {
   color: var(--text-muted);
   margin-top: 12px;
 }
+.room-card-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.room-action-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.room-action-btn:hover { background: var(--surface2); }
+.room-action-btn--danger:hover { background: rgba(229, 83, 83, 0.15); border-color: var(--danger); }
+.room-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .status-badge {
   font-size: 11px;
   padding: 2px 8px;

@@ -14,7 +14,7 @@ export class CreateRoomDto {
   @IsOptional()
   @IsInt()
   @Min(2)
-  @Max(20)
+  @Max(50)
   maxParticipants?: number;
 
   @IsOptional()

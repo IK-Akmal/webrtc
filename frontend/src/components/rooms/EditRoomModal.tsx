@@ -84,7 +84,7 @@ export function EditRoomModal({ room, onClose }: Props) {
             <input
               type="number"
               min={2}
-              max={20}
+              max={50}
               value={maxParticipants}
               onChange={(e) => setMaxParticipants(parseInt(e.target.value, 10))}
             />

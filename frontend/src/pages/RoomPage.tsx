@@ -96,13 +96,14 @@ export function RoomPage() {
         />
 
         {activePanel === 'chat' && (
-          <ChatPanel messages={chatMessages} onSend={sendChatMessage} />
+          <ChatPanel messages={chatMessages} onSend={sendChatMessage} onClose={() => togglePanel('chat')} />
         )}
         {activePanel === 'participants' && (
           <ParticipantPanel
             localParticipant={localParticipant}
             remoteParticipants={remoteParticipants}
             activeSpeakerSids={activeSpeakerSids}
+            onClose={() => togglePanel('participants')}
           />
         )}
       </div>

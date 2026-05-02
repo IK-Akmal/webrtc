@@ -1,11 +1,5 @@
 import { LocalParticipant, RemoteParticipant, Track, ConnectionQuality } from 'livekit-client';
 
-interface Props {
-  localParticipant: LocalParticipant | null;
-  remoteParticipants: RemoteParticipant[];
-  activeSpeakerSids: Set<string>;
-}
-
 function qualityDots(q: ConnectionQuality) {
   if (q === ConnectionQuality.Excellent) return <span className="q-dots q-excellent">●●●</span>;
   if (q === ConnectionQuality.Good)      return <span className="q-dots q-good">●●○</span>;
@@ -50,13 +44,21 @@ function ParticipantRow({
   );
 }
 
-export function ParticipantPanel({ localParticipant, remoteParticipants, activeSpeakerSids }: Props) {
+interface Props {
+  localParticipant: LocalParticipant | null;
+  remoteParticipants: RemoteParticipant[];
+  activeSpeakerSids: Set<string>;
+  onClose?: () => void;
+}
+
+export function ParticipantPanel({ localParticipant, remoteParticipants, activeSpeakerSids, onClose }: Props) {
   const total = remoteParticipants.length + (localParticipant ? 1 : 0);
 
   return (
     <div className="side-panel participant-panel">
       <div className="side-panel-header">
         <span>Participants ({total})</span>
+        <button className="panel-close-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div className="participant-list">

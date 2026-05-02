@@ -1,11 +1,15 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
+import express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Capture raw body for LiveKit webhook (Content-Type: application/webhook+json)
+  app.use('/api/rooms/livekit-webhook', express.raw({ type: '*/*' }));
 
   app.use(cookieParser());
 

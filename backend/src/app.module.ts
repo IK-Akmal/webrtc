@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { SignalingModule } from './signaling/signaling.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { HealthController } from './health/health.controller';
 import { RoomsService } from './rooms/rooms.service';
 
@@ -41,6 +42,7 @@ import { RoomsService } from './rooms/rooms.service';
     AuthModule,
     RoomsModule,
     SignalingModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

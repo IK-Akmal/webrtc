@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 import { roomsApi } from '../api/rooms.api';
 import { useRoomStore } from '../store/roomStore';
 import { Navbar } from '../components/layout/Navbar';
@@ -14,16 +15,31 @@ export function RoomsPage() {
   const toast = useToast();
 
   useEffect(() => {
+    let cancelled = false;
+
     roomsApi
       .list()
-      .then((r) => setRooms(r.data))
+      .then((r) => { if (!cancelled) setRooms(r.data); })
       .catch((err) => {
-        if (!isGloballyHandled(err)) {
+        if (!isGloballyHandled(err) && !cancelled) {
           toast.error('Failed to load rooms. Please refresh.');
         }
       })
-      .finally(() => setLoading(false));
-  // toast is stable (memoised in context) — safe dep
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    const socket = io(`${import.meta.env.VITE_SOCKET_URL ?? ''}/notifications`, {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('room-count-updated', ({ roomId, count }: { roomId: string; count: number }) => {
+      useRoomStore.getState().updateRoomCount(roomId, count);
+    });
+
+    return () => {
+      cancelled = true;
+      socket.disconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setRooms]);
 

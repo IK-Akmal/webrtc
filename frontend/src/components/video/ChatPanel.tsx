@@ -4,13 +4,14 @@ import type { ChatMessage } from '../../hooks/useRoom';
 interface Props {
   messages: ChatMessage[];
   onSend: (text: string) => void;
+  onClose?: () => void;
 }
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function ChatPanel({ messages, onSend }: Props) {
+export function ChatPanel({ messages, onSend, onClose }: Props) {
   const [draft, setDraft] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -30,6 +31,7 @@ export function ChatPanel({ messages, onSend }: Props) {
     <div className="side-panel chat-panel">
       <div className="side-panel-header">
         <span>Chat</span>
+        <button className="panel-close-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div className="chat-messages">

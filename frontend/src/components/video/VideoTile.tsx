@@ -60,9 +60,11 @@ export function VideoTile({ participant, trackSource = Track.Source.Camera, isLo
   }, [participant]);
 
   const track = participant.getTrackPublication(trackSource)?.videoTrack;
-  // Attach audio only on camera tiles of remote participants (avoid local echo)
-  const audioTrack = !isLocal && !isScreenShare
-    ? participant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+  // Camera tiles: play microphone audio; screen share tiles: play screen share audio
+  const audioTrack = !isLocal
+    ? isScreenShare
+      ? participant.getTrackPublication(Track.Source.ScreenShareAudio)?.audioTrack
+      : participant.getTrackPublication(Track.Source.Microphone)?.audioTrack
     : undefined;
 
   useEffect(() => {

@@ -23,20 +23,37 @@ export function VideoGrid({ localParticipant, remoteParticipants, activeSpeakerS
   const screenSharers = all.filter(({ participant }) => hasScreenShare(participant));
   const hasAnyScreenShare = screenSharers.length > 0;
 
-  return (
-    <div className={`video-grid${hasAnyScreenShare ? ' video-grid--spotlight' : ''}`}>
-      {/* Screen share tiles — displayed as spotlight at top */}
-      {screenSharers.map(({ participant, isLocal }) => (
-        <VideoTile
-          key={`${participant.sid}-screen`}
-          participant={participant}
-          trackSource={Track.Source.ScreenShare}
-          isLocal={isLocal}
-          isSpeaking={activeSpeakerSids.has(participant.sid)}
-        />
-      ))}
+  if (hasAnyScreenShare) {
+    return (
+      <div className="video-grid video-grid--spotlight">
+        <div className="spotlight-main">
+          {screenSharers.map(({ participant, isLocal }) => (
+            <VideoTile
+              key={`${participant.sid}-screen`}
+              participant={participant}
+              trackSource={Track.Source.ScreenShare}
+              isLocal={isLocal}
+              isSpeaking={activeSpeakerSids.has(participant.sid)}
+            />
+          ))}
+        </div>
+        <div className="spotlight-strip">
+          {all.map(({ participant, isLocal }) => (
+            <VideoTile
+              key={participant.sid}
+              participant={participant}
+              trackSource={Track.Source.Camera}
+              isLocal={isLocal}
+              isSpeaking={activeSpeakerSids.has(participant.sid)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-      {/* Camera tiles */}
+  return (
+    <div className="video-grid">
       {all.map(({ participant, isLocal }) => (
         <VideoTile
           key={participant.sid}

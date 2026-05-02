@@ -412,25 +412,41 @@ textarea {
   overflow-y: auto;
 }
 
-/* Spotlight layout: first row = screen share (full width), second = cameras */
+/* Spotlight layout: screen share fills main area, cameras in strip below */
 .video-grid--spotlight {
-  grid-template-columns: 1fr;
-  grid-auto-rows: auto;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 8px;
+  padding: 12px;
+  overflow: hidden;
 }
-.video-grid--spotlight .video-tile--screen {
-  grid-column: 1 / -1;
-  aspect-ratio: 16 / 9;
-  height: auto;
+
+.spotlight-main {
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
 }
-.video-grid--spotlight .video-tile:not(.video-tile--screen) {
-  aspect-ratio: 16 / 9;
-  height: auto;
+.spotlight-main .video-tile {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
 }
-/* Camera row in spotlight — horizontal strip */
-@supports (grid-template-columns: subgrid) {
-  .video-grid--spotlight {
-    grid-template-rows: 1fr auto;
-  }
+.spotlight-main .video-tile video {
+  height: 100%;
+}
+
+.spotlight-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  height: 110px;
+  padding-bottom: 2px;
+}
+.spotlight-strip .video-tile {
+  flex-shrink: 0;
+  width: 170px;
+  height: 100%;
 }
 
 .video-tile {

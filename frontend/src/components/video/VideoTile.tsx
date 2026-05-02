@@ -26,6 +26,7 @@ const qualityClass: Record<string, string> = {
 
 export function VideoTile({ participant, trackSource = Track.Source.Camera, isLocal = false, isSpeaking = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [, forceUpdate] = useState(0);
   const [quality, setQuality] = useState<ConnectionQuality>(ConnectionQuality.Unknown);
   const isScreenShare = trackSource === Track.Source.ScreenShare;
@@ -59,13 +60,24 @@ export function VideoTile({ participant, trackSource = Track.Source.Camera, isLo
   }, [participant]);
 
   const track = participant.getTrackPublication(trackSource)?.videoTrack;
+  // Attach audio only on camera tiles of remote participants (avoid local echo)
+  const audioTrack = !isLocal && !isScreenShare
+    ? participant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+    : undefined;
 
   useEffect(() => {
     const el = videoRef.current;
     if (!track || !el) return;
     track.attach(el);
     return () => { track.detach(el); };
-  }, [track]); // only re-attach when the track object itself changes
+  }, [track]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!audioTrack || !el) return;
+    audioTrack.attach(el);
+    return () => { audioTrack.detach(el); };
+  }, [audioTrack]);
 
   const isMicMuted = !participant.isMicrophoneEnabled;
   const isCamOff = !isScreenShare && !participant.isCameraEnabled;
@@ -81,6 +93,7 @@ export function VideoTile({ participant, trackSource = Track.Source.Camera, isLo
   return (
     <div className={classes}>
       <video ref={videoRef} autoPlay playsInline muted={isLocal} />
+      {audioTrack && <audio ref={audioRef} autoPlay />}
 
       {isCamOff && (
         <div className="video-tile-no-cam">

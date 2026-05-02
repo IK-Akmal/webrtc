@@ -16,4 +16,9 @@ export class CreateRoomDto {
   @Min(2)
   @Max(20)
   maxParticipants?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  password?: string;
 }

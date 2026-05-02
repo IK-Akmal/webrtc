@@ -16,6 +16,7 @@ export function CreateRoomModal({ onClose }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(10);
+  const [password, setPassword] = useState('');
   const [nameError, setNameError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +31,12 @@ export function CreateRoomModal({ onClose }: Props) {
 
     setLoading(true);
     try {
-      const { data } = await roomsApi.create(name.trim(), description.trim() || undefined, maxParticipants);
+      const { data } = await roomsApi.create(
+        name.trim(),
+        description.trim() || undefined,
+        maxParticipants,
+        password.trim() || undefined,
+      );
       addRoom(data);
       toast.success(`Room "${data.name}" created.`);
       onClose();
@@ -54,10 +60,7 @@ export function CreateRoomModal({ onClose }: Props) {
               type="text"
               placeholder="Room name"
               value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setNameError('');
-              }}
+              onChange={(e) => { setName(e.target.value); setNameError(''); }}
               className={nameError ? 'input-error' : undefined}
               aria-invalid={!!nameError}
               aria-describedby={nameError ? 'err-room-name' : undefined}
@@ -87,6 +90,13 @@ export function CreateRoomModal({ onClose }: Props) {
               onChange={(e) => setMaxParticipants(parseInt(e.target.value, 10))}
             />
           </label>
+
+          <input
+            type="password"
+            placeholder="Room password (optional)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
           <div className="modal-actions">
             <button type="button" className="btn" onClick={onClose}>

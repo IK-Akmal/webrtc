@@ -8,6 +8,7 @@ export interface Room {
   status: 'waiting' | 'active' | 'closed';
   ownerId: string;
   activeParticipantCount?: number;
+  isPasswordProtected?: boolean;
   createdAt: string;
 }
 
@@ -17,9 +18,11 @@ export interface IceConfig {
 
 export const roomsApi = {
   list: () => api.get<Room[]>('/rooms'),
-  create: (name: string, description?: string, maxParticipants?: number) =>
-    api.post<Room>('/rooms', { name, description, maxParticipants }),
+  create: (name: string, description?: string, maxParticipants?: number, password?: string) =>
+    api.post<Room>('/rooms', { name, description, maxParticipants, password }),
   get: (id: string) => api.get<Room>(`/rooms/${id}`),
   delete: (id: string) => api.delete(`/rooms/${id}`),
   iceConfig: () => api.get<IceConfig>('/rooms/ice-config'),
+  livekitToken: (id: string, password?: string) =>
+    api.get<{ token: string }>(`/rooms/${id}/livekit-token`, { params: password ? { password } : {} }),
 };

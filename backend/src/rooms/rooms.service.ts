@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 import { Room, RoomStatus } from './entities/room.entity';
 import { Participant, ParticipantState } from './entities/participant.entity';
@@ -30,10 +31,12 @@ export class RoomsService {
   }
 
   async create(ownerId: string, dto: CreateRoomDto): Promise<Room> {
+    const passwordHash = dto.password ? await bcrypt.hash(dto.password, 10) : null;
     const room = this.roomRepo.create({
       name: dto.name,
       description: dto.description ?? null,
       maxParticipants: dto.maxParticipants ?? 10,
+      passwordHash,
       ownerId,
       status: RoomStatus.WAITING,
     });
@@ -59,7 +62,14 @@ export class RoomsService {
     }
 
     const countMap = new Map(livekitRooms.map((r) => [r.name, r.numParticipants]));
-    return rooms.map((r) => Object.assign(r, { activeParticipantCount: countMap.get(r.id) ?? 0 }));
+    return rooms.map((r) => {
+      const { passwordHash: _ph, ...rest } = r as Room & { passwordHash?: unknown };
+      void _ph;
+      return Object.assign(rest as Room, {
+        activeParticipantCount: countMap.get(r.id) ?? 0,
+        isPasswordProtected: !!r.passwordHash,
+      });
+    });
   }
 
   async findOne(id: string): Promise<Room> {
@@ -123,9 +133,16 @@ export class RoomsService {
     roomId: string,
     userId: string,
     displayName: string,
+    password?: string,
   ): Promise<{ token: string }> {
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Room not found');
+
+    if (room.passwordHash) {
+      if (!password) throw new ForbiddenException('Room is password protected');
+      const valid = await bcrypt.compare(password, room.passwordHash);
+      if (!valid) throw new ForbiddenException('Incorrect room password');
+    }
 
     const apiKey = this.config.get<string>('LIVEKIT_API_KEY') ?? 'devkey';
     const apiSecret = this.config.get<string>('LIVEKIT_API_SECRET') ?? 'secret';

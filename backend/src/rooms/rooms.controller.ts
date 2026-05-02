@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -35,8 +36,12 @@ export class RoomsController {
   }
 
   @Get(':id/livekit-token')
-  getLivekitToken(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.roomsService.getLivekitToken(id, user.sub, user.displayName);
+  getLivekitToken(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Query('password') password?: string,
+  ) {
+    return this.roomsService.getLivekitToken(id, user.sub, user.displayName, password);
   }
 
   @Get(':id')

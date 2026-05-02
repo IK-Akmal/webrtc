@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ConnectionState } from 'livekit-client';
 import { useRoom } from '../hooks/useRoom';
 import { VideoGrid } from '../components/video/VideoGrid';
@@ -12,6 +12,8 @@ type PanelType = 'chat' | 'participants' | null;
 export function RoomPage() {
   const { id: roomId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const password = (location.state as { password?: string } | null)?.password;
 
   const {
     localParticipant,
@@ -26,7 +28,7 @@ export function RoomPage() {
     toggleVideo,
     toggleScreenShare,
     sendChatMessage,
-  } = useRoom(roomId ?? '');
+  } = useRoom(roomId ?? '', password);
 
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [mediaBannerDismissed, setMediaBannerDismissed] = useState(false);

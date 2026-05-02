@@ -8,7 +8,8 @@ import {
   ConnectionState,
   Track,
 } from 'livekit-client';
-import api from '../api/axios';
+import axios from 'axios';
+import { roomsApi } from '../api/rooms.api';
 
 function describeMediaError(err: Error): string {
   const name = (err as DOMException).name ?? err.message;
@@ -32,7 +33,7 @@ export interface ChatMessage {
 
 const CHAT_TOPIC = 'chat';
 
-export function useRoom(roomId: string) {
+export function useRoom(roomId: string, password?: string) {
   const roomRef = useRef<Room | null>(null);
   const [localParticipant, setLocalParticipant] = useState<LocalParticipant | null>(null);
   const [remoteParticipants, setRemoteParticipants] = useState<RemoteParticipant[]>([]);
@@ -93,7 +94,7 @@ export function useRoom(roomId: string) {
 
     const connect = async () => {
       try {
-        const { data } = await api.get<{ token: string }>(`/rooms/${roomId}/livekit-token`);
+        const { data } = await roomsApi.livekitToken(roomId, password);
         const livekitUrl =
           import.meta.env.VITE_LIVEKIT_URL ||
           `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
@@ -108,7 +109,10 @@ export function useRoom(roomId: string) {
         }
         syncParticipants();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to connect to room';
+        const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+        const msg = status === 403
+          ? 'Incorrect room password.'
+          : err instanceof Error ? err.message : 'Failed to connect to room';
         setError(msg);
       }
     };
@@ -119,7 +123,7 @@ export function useRoom(roomId: string) {
       room.disconnect();
       roomRef.current = null;
     };
-  }, [roomId]);
+  }, [roomId, password]);
 
   function toggleAudio(enabled: boolean) {
     roomRef.current?.localParticipant.setMicrophoneEnabled(enabled);

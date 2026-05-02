@@ -33,6 +33,9 @@ export class Room {
   @Column({ type: 'enum', enum: RoomStatus, default: RoomStatus.WAITING })
   status!: RoomStatus;
 
+  @Column({ nullable: true, type: 'varchar' })
+  passwordHash!: string | null;
+
   @Column()
   ownerId!: string;
 
